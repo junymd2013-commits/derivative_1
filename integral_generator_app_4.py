@@ -72,7 +72,7 @@ def gen_poly_cubic_bracket():
     return f, sp.diff(f, x), "poly_cubic_bracket"
 
 # ============================================================
-# 三角関数
+# 三角関数（tan は必ず cos で表示）
 # ============================================================
 def gen_trig(kind, fixed1=False):
     a = 1 if fixed1 else random.choice([2, 3, 4])
@@ -81,12 +81,17 @@ def gen_trig(kind, fixed1=False):
 
     if kind == "sin":
         f = sp.sin(u)
+        fp = sp.diff(f, x)
     elif kind == "cos":
         f = sp.cos(u)
+        fp = sp.diff(f, x)
     else:
         f = sp.tan(u)
+        fp = sp.diff(f, x)
+        fp = fp.rewrite(sp.cos)     # sec → cos
+        fp = sp.simplify(fp)        # u'/cos^2(u)
 
-    return f, sp.diff(f, x), f"{kind}_ax+b"
+    return f, fp, f"{kind}_ax+b"
 
 # ============================================================
 # 指数・対数（log を自然対数として扱う）
@@ -110,7 +115,8 @@ def gen_exp(fixed1=False):
         f = basev**(a*x + b)
         skey = "exp_a"
 
-    return f, sp.diff(f, x), skey
+    fp = sp.diff(f, x)
+    return f, fp, skey
 
 def gen_log():
     base = random.choice(["ln", "2", "10", "a"])
@@ -132,7 +138,8 @@ def gen_log():
         f = sp.log(u, basev)
         skey = "log_a"
 
-    return f, sp.diff(f, x), skey
+    fp = sp.diff(f, x)
+    return f, fp, skey
 
 # ============================================================
 # 類似チェックつき問題追加（最大10回）
@@ -166,11 +173,11 @@ def build_set(mode):
     seen_struct = set()
 
     if mode == "多項式":
-        add_problem(gen_poly_linear, problems, seen_exact, seen_struct)        # 1番：1次
-        add_problem(gen_poly_quadratic, problems, seen_exact, seen_struct)     # 2番：2次
-        add_problem(gen_poly_quadratic, problems, seen_exact, seen_struct)     # 3番：2次
-        add_problem(gen_poly_cubic_plain, problems, seen_exact, seen_struct)   # 4番：3次（通常）
-        add_problem(gen_poly_cubic_bracket, problems, seen_exact, seen_struct) # 5番：3次（かっこ付き）
+        add_problem(gen_poly_linear, problems, seen_exact, seen_struct)        # 1次
+        add_problem(gen_poly_quadratic, problems, seen_exact, seen_struct)     # 2次
+        add_problem(gen_poly_quadratic, problems, seen_exact, seen_struct)     # 2次
+        add_problem(gen_poly_cubic_plain, problems, seen_exact, seen_struct)   # 3次（通常）
+        add_problem(gen_poly_cubic_bracket, problems, seen_exact, seen_struct) # 3次（かっこ付き）
 
     elif mode == "三角関数":
         add_problem(lambda: gen_trig("sin", True), problems, seen_exact, seen_struct)
