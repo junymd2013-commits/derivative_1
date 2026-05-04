@@ -310,3 +310,105 @@ if probs:
 
 else:
     st.info("「5題を生成する」を押してください。")
+
+# ============================================================
+# セッション管理
+# ============================================================
+if "mode" not in st.session_state:
+    st.session_state.mode = "多項式"
+if "problems" not in st.session_state:
+    st.session_state.problems = []
+if "selects" not in st.session_state:
+    st.session_state.selects = [None] * 5
+if "checked" not in st.session_state:
+    st.session_state.checked = False
+if "set_id" not in st.session_state:
+    st.session_state.set_id = 0
+if "start_time" not in st.session_state:
+    st.session_state.start_time = None
+
+# ============================================================
+# UI
+# ============================================================
+st.title("微分トレーニング（4択・5題セット）")
+
+mode = st.selectbox("問題の種類を選んでください", ["多項式", "三角関数", "指数・対数"])
+st.session_state.mode = mode
+
+if st.button("5題を生成する"):
+    st.session_state.problems = build_set(mode)
+    st.session_state.selects = [None] * 5
+    st.session_state.checked = False
+    st.session_state.set_id += 1
+    st.session_state.start_time = st.time()  # ★開始時刻を記録
+
+probs = st.session_state.problems
+
+if probs:
+    st.markdown("### 問題に答えてください（正しい導関数を選択）")
+
+    for i, p in enumerate(probs):
+        st.markdown(f"#### 【問題 {i+1}】")
+        st.latex(rf"f(x) = {sp.latex(p['f'])}")
+
+        labels = [f"$f'(x) = {sp.latex(opt)}$" for opt in p["opts"]]
+
+        choice = st.radio(
+            f"選択肢（問題 {i+1}）",
+            options=list(range(4)),
+            format_func=lambda j, labels=labels: labels[j],
+            index=None,
+            key=f"choice_{st.session_state.set_id}_{i}",
+        )
+        st.session_state.selects[i] = choice
+
+    if st.button("採点する"):
+        st.session_state.checked = True
+
+    if st.session_state.checked:
+        st.markdown("## 採点結果")
+
+        correct_now = 0
+        for i, p in enumerate(probs):
+            user = st.session_state.selects[i]
+            st.markdown(f"### 【問題 {i+1}】")
+            if user == p["idx"]:
+                st.success("正解")
+                correct_now += 1
+            else:
+                st.error("不正解")
+            st.latex(rf"正しい答え：\ f'(x) = {sp.latex(p['fp'])}")
+
+        st.markdown(f"## このセットの正答数：{correct_now} / 5")
+
+        # ★ 終了ボタン
+        if st.button("終了する"):
+            end_time = st.time()
+            elapsed = end_time - st.session_state.start_time
+            minutes = int(elapsed // 60)
+            seconds = int(elapsed % 60)
+
+            st.markdown("## 📘 学習おつかれさまでした！")
+            st.markdown(f"### ⏱ 所要時間：{minutes}分 {seconds}秒")
+            st.markdown(f"### 🎯 正答率：{correct_now} / 5")
+
+            # 励ましの言葉
+            if correct_now == 5:
+                st.success("素晴らしい！満点です。この調子で次も頑張りましょう。")
+            elif correct_now >= 3:
+                st.info("よくできています！あと少しで満点です。")
+            else:
+                st.warning("落ち着いて取り組めば必ず伸びます。一緒に頑張りましょう。")
+
+            st.stop()
+
+        if st.button("次の問題セットへ"):
+            st.session_state.problems = build_set(mode)
+            st.session_state.selects = [None] * 5
+            st.session_state.checked = False
+            st.session_state.set_id += 1
+            st.session_state.start_time = st.time()  # ★再スタート
+
+else:
+    st.info("「5題を生成する」を押してください。")
+ 
