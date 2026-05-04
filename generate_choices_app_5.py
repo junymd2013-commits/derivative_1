@@ -23,22 +23,22 @@ def simplify_fraction(expr):
     return sp.simplify(frac * num_rest / den_rest)
 
 # ============================================================
-# 高校教科書形式の指数・対数の導関数
+# 高校教科書形式の指数・対数の導関数（SymPy に触らせない）
 # ============================================================
 def format_exp_derivative(base, u, du):
     if base == sp.E:
-        return simplify_fraction(sp.exp(u) * du)
+        return sp.exp(u) * du
     else:
-        return simplify_fraction(base**u * sp.log(base) * du)
+        return base**u * sp.log(base) * du
 
 def format_log_derivative(base, u, du):
     if base == sp.E:
-        return simplify_fraction(du / u)
+        return du / u
     else:
-        return simplify_fraction(du / (u * sp.log(base)))
+        return du / (u * sp.log(base))
 
 # ============================================================
-# 4択生成
+# 4択生成（指数・対数は simplify しない）
 # ============================================================
 def generate_choices(fp):
     correct = simplify_fraction(fp)
@@ -131,7 +131,7 @@ def gen_trig(kind, fixed1=False):
     return f, fp, f"{kind}_ax+b"
 
 # ============================================================
-# 指数（高校教科書準拠）
+# 指数（高校教科書準拠・指数法則禁止）
 # ============================================================
 def gen_exp_correct():
     base_choice = random.choice(["e", "e", "2or5"])
