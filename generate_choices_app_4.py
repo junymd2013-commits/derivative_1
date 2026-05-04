@@ -6,28 +6,39 @@ st.set_page_config(page_title="微分トレーニング（4択・5題セット�
 x = sp.Symbol("x")
 
 # ============================================================
-# 既約分数に統一する関数（重要）
+# 既約分数に統一する関数
 # ============================================================
 def simplify_fraction(expr):
     expr = sp.simplify(expr)
     num, den = sp.fraction(expr)
 
-    # 係数部分を抽出
     num_c = num.as_coeff_Mul()[0]
     den_c = den.as_coeff_Mul()[0]
 
-    # 係数だけ既約分数に
     frac = sp.Rational(num_c, den_c)
 
-    # 残りの部分（x を含む部分）
     num_rest = num / num_c
     den_rest = den / den_c
 
-    # 再構成して簡単化
     return sp.simplify(frac * num_rest / den_rest)
 
 # ============================================================
-# 4択生成（軽量）
+# 高校教科書形式の指数・対数の導関数
+# ============================================================
+def format_exp_derivative(base, u, du):
+    if base == sp.E:
+        return simplify_fraction(sp.exp(u) * du)
+    else:
+        return simplify_fraction(base**u * sp.log(base) * du)
+
+def format_log_derivative(base, u, du):
+    if base == sp.E:
+        return simplify_fraction(du / u)
+    else:
+        return simplify_fraction(du / (u * sp.log(base)))
+
+# ============================================================
+# 4択生成
 # ============================================================
 def generate_choices(fp):
     correct = simplify_fraction(fp)
@@ -60,7 +71,7 @@ def generate_choices(fp):
     return options, options.index(correct)
 
 # ============================================================
-# 多項式（1次・2次・3次）
+# 多項式
 # ============================================================
 def gen_poly_linear():
     a = random.choice([i for i in range(-5, 6) if i != 0])
@@ -97,7 +108,7 @@ def gen_poly_cubic_bracket():
     return f, fp, "poly_cubic_bracket"
 
 # ============================================================
-# 三角関数（tan は必ず cos で表示）
+# 三角関数
 # ============================================================
 def gen_trig(kind, fixed1=False):
     a = 1 if fixed1 else random.choice([2, 3, 4])
@@ -120,55 +131,58 @@ def gen_trig(kind, fixed1=False):
     return f, fp, f"{kind}_ax+b"
 
 # ============================================================
-# 指数・対数（log を自然対数として扱う）
+# 指数（高校教科書準拠）
 # ============================================================
-def gen_exp(fixed1=False):
-    base = random.choice(["e", "2", "10", "a"])
-    a = 1 if fixed1 else random.choice([2, 3, 4])
+def gen_exp_correct():
+    base_choice = random.choice(["e", "e", "2or5"])
+
+    a = random.choice([1, 2, 3, 4])
     b = random.randint(-2, 2)
+    u = a*x + b
 
-    if base == "e":
-        f = sp.exp(a*x + b)
+    if base_choice == "e":
+        f = sp.exp(u)
+        fp = format_exp_derivative(sp.E, u, a)
         skey = "exp_e"
-    elif base == "2":
-        f = 2**(a*x + b)
-        skey = "exp_2"
-    elif base == "10":
-        f = 10**(a*x + b)
-        skey = "exp_10"
     else:
-        basev = random.randint(2, 5)
-        f = basev**(a*x + b)
-        skey = "exp_a"
+        base = random.choice([2, 5])
+        f = base**u
+        fp = format_exp_derivative(base, u, a)
+        skey = f"exp_{base}"
 
-    fp = simplify_fraction(sp.diff(f, x))
     return f, fp, skey
 
-def gen_log():
-    base = random.choice(["ln", "2", "10", "a"])
+# ============================================================
+# 対数（高校教科書準拠）
+# ============================================================
+def gen_log_correct():
+    base_choice = random.choice(["ln", "2or3", "a"])
+
     a = random.randint(1, 3)
     b = random.randint(-2, 2)
     u = a*x + b
 
-    if base == "ln":
+    if base_choice == "ln":
         f = sp.log(u)
+        fp = format_log_derivative(sp.E, u, a)
         skey = "log"
-    elif base == "2":
-        f = sp.log(u, 2)
-        skey = "log_2"
-    elif base == "10":
-        f = sp.log(u, 10)
-        skey = "log_10"
+
+    elif base_choice == "2or3":
+        base = random.choice([2, 3])
+        f = sp.log(u, base)
+        fp = format_log_derivative(base, u, a)
+        skey = f"log_{base}"
+
     else:
-        basev = random.randint(2, 5)
-        f = sp.log(u, basev)
+        base = random.randint(2, 5)
+        f = sp.log(u, base)
+        fp = format_log_derivative(base, u, a)
         skey = "log_a"
 
-    fp = simplify_fraction(sp.diff(f, x))
     return f, fp, skey
 
 # ============================================================
-# 類似チェックつき問題追加（最大10回）
+# 類似チェックつき問題追加
 # ============================================================
 def add_problem(gen_func, problems, seen_exact, seen_struct, *args):
     last = None
@@ -213,10 +227,11 @@ def build_set(mode):
         add_problem(lambda: gen_trig("cos", False), problems, seen_exact, seen_struct)
 
     elif mode == "指数・対数":
-        add_problem(lambda: gen_exp(True), problems, seen_exact, seen_struct)
-        add_problem(lambda: gen_exp(False), problems, seen_exact, seen_struct)
-        for _ in range(3):
-            add_problem(gen_log, problems, seen_exact, seen_struct)
+        add_problem(gen_exp_correct, problems, seen_exact, seen_struct)
+        add_problem(gen_exp_correct, problems, seen_exact, seen_struct)
+        add_problem(gen_exp_correct, problems, seen_exact, seen_struct)
+        add_problem(gen_log_correct, problems, seen_exact, seen_struct)
+        add_problem(gen_log_correct, problems, seen_exact, seen_struct)
 
     return problems
 
