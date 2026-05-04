@@ -6,7 +6,7 @@ st.set_page_config(page_title="微分トレーニング（4択・5題セット�
 x = sp.Symbol("x")
 
 # ============================================================
-# 既約分数に統一する関数
+# 既約分数に統一する関数（指数・対数には適用しない）
 # ============================================================
 def simplify_fraction(expr):
     expr = sp.simplify(expr)
@@ -41,7 +41,11 @@ def format_log_derivative(base, u, du):
 # 4択生成（指数・対数は simplify しない）
 # ============================================================
 def generate_choices(fp):
-    correct = simplify_fraction(fp)
+    if fp.has(sp.log) or fp.has(sp.exp) or any(p.is_Pow for p in fp.atoms(sp.Pow)):
+        correct = fp
+    else:
+        correct = simplify_fraction(fp)
+
     wrongs = []
 
     candidates = [
@@ -53,7 +57,11 @@ def generate_choices(fp):
     ]
 
     for w in candidates:
-        w_s = simplify_fraction(w)
+        if w.has(sp.log) or w.has(sp.exp) or any(p.is_Pow for p in w.atoms(sp.Pow)):
+            w_s = w
+        else:
+            w_s = simplify_fraction(w)
+
         if sp.simplify(w_s - correct) != 0 and all(sp.simplify(w_s - ww) != 0 for ww in wrongs):
             wrongs.append(w_s)
         if len(wrongs) == 3:
@@ -61,7 +69,7 @@ def generate_choices(fp):
 
     k = 2
     while len(wrongs) < 3:
-        extra = simplify_fraction(correct + k)
+        extra = correct + k
         if sp.simplify(extra - correct) != 0:
             wrongs.append(extra)
         k += 1
@@ -205,7 +213,7 @@ def add_problem(gen_func, problems, seen_exact, seen_struct, *args):
     problems.append({"f": f, "fp": fp, "opts": opts, "idx": idx})
 
 # ============================================================
-# 5題セット生成
+# 5題セット生成（指数3題 → 対数2題の順番固定）
 # ============================================================
 def build_set(mode):
     problems = []
@@ -227,89 +235,14 @@ def build_set(mode):
         add_problem(lambda: gen_trig("cos", False), problems, seen_exact, seen_struct)
 
     elif mode == "指数・対数":
-        add_problem(gen_exp_correct, problems, seen_exact, seen_struct)
-        add_problem(gen_exp_correct, problems, seen_exact, seen_struct)
-        add_problem(gen_exp_correct, problems, seen_exact, seen_struct)
-        add_problem(gen_log_correct, problems, seen_exact, seen_struct)
-        add_problem(gen_log_correct, problems, seen_exact, seen_struct)
+        add_problem(lambda: gen_exp_correct(), problems, seen_exact, seen_struct)
+        add_problem(lambda: gen_exp_correct(), problems, seen_exact, seen_struct)
+        add_problem(lambda: gen_exp_correct(), problems, seen_exact, seen_struct)
+
+        add_problem(lambda: gen_log_correct(), problems, seen_exact, seen_struct)
+        add_problem(lambda: gen_log_correct(), problems, seen_exact, seen_struct)
 
     return problems
-
-# ============================================================
-# セッション管理
-# ============================================================
-if "mode" not in st.session_state:
-    st.session_state.mode = "多項式"
-if "problems" not in st.session_state:
-    st.session_state.problems = []
-if "selects" not in st.session_state:
-    st.session_state.selects = [None] * 5
-if "checked" not in st.session_state:
-    st.session_state.checked = False
-if "set_id" not in st.session_state:
-    st.session_state.set_id = 0
-
-# ============================================================
-# UI
-# ============================================================
-st.title("微分トレーニング（4択・5題セット）")
-
-mode = st.selectbox("問題の種類を選んでください", ["多項式", "三角関数", "指数・対数"])
-st.session_state.mode = mode
-
-if st.button("5題を生成する"):
-    st.session_state.problems = build_set(mode)
-    st.session_state.selects = [None] * 5
-    st.session_state.checked = False
-    st.session_state.set_id += 1
-
-probs = st.session_state.problems
-
-if probs:
-    st.markdown("### 問題に答えてください（正しい導関数を選択）")
-
-    for i, p in enumerate(probs):
-        st.markdown(f"#### 【問題 {i+1}】")
-        st.latex(rf"f(x) = {sp.latex(p['f'])}")
-
-        labels = [f"$f'(x) = {sp.latex(opt)}$" for opt in p["opts"]]
-
-        choice = st.radio(
-            f"選択肢（問題 {i+1}）",
-            options=list(range(4)),
-            format_func=lambda j, labels=labels: labels[j],
-            index=None,
-            key=f"choice_{st.session_state.set_id}_{i}",
-        )
-        st.session_state.selects[i] = choice
-
-    if st.button("採点する"):
-        st.session_state.checked = True
-
-    if st.session_state.checked:
-        st.markdown("## 採点結果")
-
-        correct_now = 0
-        for i, p in enumerate(probs):
-            user = st.session_state.selects[i]
-            st.markdown(f"### 【問題 {i+1}】")
-            if user == p["idx"]:
-                st.success("正解")
-                correct_now += 1
-            else:
-                st.error("不正解")
-            st.latex(rf"正しい答え：\ f'(x) = {sp.latex(p['fp'])}")
-
-        st.markdown(f"## このセットの正答数：{correct_now} / 5")
-
-        if st.button("次の問題セットへ"):
-            st.session_state.problems = build_set(mode)
-            st.session_state.selects = [None] * 5
-            st.session_state.checked = False
-            st.session_state.set_id += 1
-
-else:
-    st.info("「5題を生成する」を押してください。")
 
 # ============================================================
 # セッション管理
@@ -328,7 +261,7 @@ if "start_time" not in st.session_state:
     st.session_state.start_time = None
 
 # ============================================================
-# UI
+# UI（key 付き）
 # ============================================================
 st.title("微分トレーニング（4択・5題セット）")
 
@@ -344,7 +277,7 @@ if st.button("5題を生成する", key="generate_button"):
     st.session_state.selects = [None] * 5
     st.session_state.checked = False
     st.session_state.set_id += 1
-    st.session_state.start_time = st.time()  # ★開始時刻を記録
+    st.session_state.start_time = st.time()
 
 probs = st.session_state.problems
 
@@ -385,7 +318,6 @@ if probs:
 
         st.markdown(f"## このセットの正答数：{correct_now} / 5")
 
-        # ★ 終了ボタン
         if st.button("終了する", key="finish_button"):
             end_time = st.time()
             elapsed = end_time - st.session_state.start_time
@@ -396,7 +328,6 @@ if probs:
             st.markdown(f"### ⏱ 所要時間：{minutes}分 {seconds}秒")
             st.markdown(f"### 🎯 正答率：{correct_now} / 5")
 
-            # 励ましの言葉
             if correct_now == 5:
                 st.success("素晴らしい！満点です。この調子で次も頑張りましょう。")
             elif correct_now >= 3:
@@ -411,8 +342,7 @@ if probs:
             st.session_state.selects = [None] * 5
             st.session_state.checked = False
             st.session_state.set_id += 1
-            st.session_state.start_time = st.time()  # ★再スタート
+            st.session_state.start_time = st.time()
 
 else:
     st.info("「5題を生成する」を押してください。")
-
