@@ -1,6 +1,7 @@
 import streamlit as st
 import random
 import sympy as sp
+import time
 
 st.set_page_config(page_title="微分トレーニング（4択・5題セット）", layout="centered")
 x = sp.Symbol("x")
@@ -277,7 +278,7 @@ if st.button("5題を生成する", key="generate_button"):
     st.session_state.selects = [None] * 5
     st.session_state.checked = False
     st.session_state.set_id += 1
-    st.session_state.start_time = st.time()
+    st.session_state.start_time = time.time()
 
 probs = st.session_state.problems
 
@@ -319,7 +320,7 @@ if probs:
         st.markdown(f"## このセットの正答数：{correct_now} / 5")
 
         if st.button("終了する", key="finish_button"):
-            end_time = st.time()
+            end_time = time.time()
             elapsed = end_time - st.session_state.start_time
             minutes = int(elapsed // 60)
             seconds = int(elapsed % 60)
@@ -342,7 +343,7 @@ if probs:
             st.session_state.selects = [None] * 5
             st.session_state.checked = False
             st.session_state.set_id += 1
-            st.session_state.start_time = st.time()
+            st.session_state.start_time = time.time()
 
 else:
     st.info("「5題を生成する」を押してください。")
